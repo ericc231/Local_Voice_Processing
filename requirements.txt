@@ -1,0 +1,17 @@
+
+openai-whisper
+torch
+# For specific CUDA version, uncomment and adapt the following line:
+# -f https://download.pytorch.org/whl/torch_stable.html
+# torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu118
+
+pyannote.audio
+SpeechBrain
+resemblyzer
+
+transformers
+sentencepiece
+accelerate
+
+# For data management and config
+python-dotenv
