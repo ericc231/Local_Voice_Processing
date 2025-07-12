@@ -6,8 +6,8 @@ torch
 # torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu118
 
 pyannote.audio
-SpeechBrain
-resemblyzer
+speechbrain
+torchaudio
 
 transformers
 sentencepiece
@@ -15,3 +15,6 @@ accelerate
 
 # For data management and config
 python-dotenv
+llama-cpp-python
+huggingface-hub
+tqdm

@@ -22,7 +22,8 @@ DB_PATH = DATABASE_DIR / "metadata.db"
 # --- Model & API Configurations from .env ---
 HUGGING_FACE_HUB_TOKEN = os.getenv("HUGGING_FACE_HUB_TOKEN")
 WHISPER_MODEL_PATH = os.getenv("WHISPER_MODEL_PATH")
-LLM_MODEL_PATH = os.getenv("LLM_MODEL_PATH")
+LLM_GGUF_REPO = os.getenv("LLM_GGUF_REPO")
+LLM_GGUF_FILENAME = os.getenv("LLM_GGUF_FILENAME")
 COMPUTE_DEVICE_SETTING = os.getenv("COMPUTE_DEVICE", "auto").lower()
 
 _TORCH_DEVICE = None

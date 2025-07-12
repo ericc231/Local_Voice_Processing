@@ -1,4 +1,3 @@
-
 # Local Voice Processing Pipeline
 
 This project provides a complete, local-only pipeline for processing audio files, including speech recognition, speaker diarization, voice embedding, and summarization.
@@ -20,10 +19,11 @@ local_voice_processing/
 ├── database/               # SQLite database
 ├── diarized_transcripts/   # Transcripts with speaker labels
 ├── embeddings/             # Speaker voice embeddings
-├── scripts/                # Helper scripts
+├── models/                 # Downloaded GGUF models
 ├── src/                    # Main source code
 │   ├── __init__.py
 │   ├── asr.py
+│   ├── config.py
 │   ├── data_manager.py
 │   ├── diarization.py
 │   ├── embedding.py
@@ -31,34 +31,42 @@ local_voice_processing/
 ├── summaries/              # Generated summaries
 ├── transcripts/            # Raw ASR transcripts
 ├── .env                    # Environment variables
+├── .gitignore              # Git ignore file
 ├── environment.yml         # Conda environment file
-├── README.md               # This file
-├── requirements.txt        # Python dependencies
-└── setup_env.sh            # Environment setup script
+└── README.md               # This file
 ```
 
 ## Setup
 
-1. **Create and activate the environment:**
+1. **Create and activate the Conda environment:**
 
    ```bash
-   bash setup_env.sh
+   # Create the environment from the file
+   conda env create -f environment.yml
+
+   # Activate the new environment
+   conda activate local_voice_processing
    ```
-
-2. **Configure your environment:**
-
-   Edit the `.env` file to set your compute device and add your Hugging Face token if needed.
 
    ```dotenv
-   # Options: auto, cpu, cuda, mps
+   # .env
    COMPUTE_DEVICE=auto
-   HUGGING_FACE_HUB_TOKEN=your_token_here
+   HUGGING_FACE_HUB_TOKEN=your_huggingface_read_token_here # Required for pyannote.audio and SpeechBrain models
    ```
+
+2. **Configure the LLM Model:**
+
+   Edit the `.env` file to specify the Hugging Face repository and filename for the GGUF model you wish to use. The default is Qwen2-7B-Instruct, which is recommended for mixed Chinese-English environments.
+
+
+3. **First Run**: The first time you run the summarization feature, the script will automatically download the specified model into the `models/` directory. This may take some time depending on your internet connection.
 
 ## Usage
 
-Run the main pipeline with:
+Run the main pipeline with a `.wav` audio file:
 
 ```bash
 python -m src.main audio/your_audio_file.wav --summarize
 ```
+
+**Note**: The input audio file must be in `.wav` format. If you have another format (e.g., `.mp3`, `.m4a`), please convert it first. A sample `ffmpeg` command is provided by the script if you use a wrong file type.
