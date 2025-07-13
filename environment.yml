@@ -1,9 +1,12 @@
-
 name: local_voice_processing
 channels:
+  - conda-forge
   - defaults
 dependencies:
   - python=3.11
   - pip
+  - pytorch
+  - torchaudio
+  - llama-cpp-python
   - pip:
     - -r requirements.txt

@@ -1,4 +1,3 @@
-
 """
 Data management using SQLite.
 """
@@ -27,64 +26,84 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS speakers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            temp_name TEXT UNIQUE, -- The temporary ID like SPEAKER_00
-            real_name TEXT,        -- The user-defined real name
+            global_speaker_id TEXT UNIQUE, -- Consistent ID across all audios (e.g., GLOBAL_SPEAKER_001)
+            real_name TEXT,                -- User-defined name (e.g., Eric, Alice)
             embedding_path TEXT UNIQUE
         )
     ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS transcripts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            audio_path TEXT UNIQUE,
+            audio_path TEXT UNIQUE, -- Original audio file path
+            audio_sha256 TEXT UNIQUE, -- SHA256 hash of the audio file
             transcript_path TEXT,
             diarized_transcript_path TEXT,
             summary_path TEXT,
+            status TEXT DEFAULT 'pending', -- e.g., 'pending', 'transcribed', 'diarized', 'embedded', 'summarized', 'completed'
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.commit()
     conn.close()
 
-def add_or_update_speaker(temp_name: str, embedding_path: str):
-    """Adds a new speaker or updates an existing one's embedding path.
-    Initializes real_name to temp_name if new.
+def get_next_global_speaker_id():
+    """Generates the next available global speaker ID (e.g., GLOBAL_SPEAKER_001)."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT MAX(CAST(SUBSTR(global_speaker_id, 15) AS INTEGER)) FROM speakers WHERE global_speaker_id LIKE 'GLOBAL_SPEAKER_%'")
+    max_id = c.fetchone()[0]
+    conn.close()
+    if max_id is None:
+        return "GLOBAL_SPEAKER_001"
+    else:
+        return f"GLOBAL_SPEAKER_{max_id + 1:03d}"
+
+def add_global_speaker(global_speaker_id: str, embedding_path: str):
+    """Adds a new global speaker to the database.
+    Initializes real_name to global_speaker_id.
     """
     conn = get_db_connection()
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO speakers (temp_name, real_name, embedding_path) VALUES (?, ?, ?)", 
-                  (temp_name, temp_name, embedding_path))
+        c.execute("INSERT INTO speakers (global_speaker_id, real_name, embedding_path) VALUES (?, ?, ?)", 
+                  (global_speaker_id, global_speaker_id, embedding_path))
         conn.commit()
-        print(f"Added new speaker: {temp_name}")
+        print(f"Added new global speaker: {global_speaker_id}")
     except sqlite3.IntegrityError:
-        # If temp_name already exists, update the embedding path
-        c.execute("UPDATE speakers SET embedding_path = ? WHERE temp_name = ?", 
-                  (embedding_path, temp_name))
-        conn.commit()
-        print(f"Updated embedding path for speaker: {temp_name}")
+        print(f"Warning: Global speaker {global_speaker_id} already exists. Skipping add.")
     finally:
         conn.close()
 
-def rename_speaker(temp_name: str, new_real_name: str):
-    """Updates the real_name for a given temporary speaker name."""
+def update_global_speaker_embedding_path(global_speaker_id: str, embedding_path: str):
+    """Updates an existing global speaker's embedding path."""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("UPDATE speakers SET real_name = ? WHERE temp_name = ?", (new_real_name, temp_name))
+    c.execute("UPDATE speakers SET embedding_path = ? WHERE global_speaker_id = ?", 
+              (embedding_path, global_speaker_id))
     conn.commit()
     conn.close()
-    print(f"Renamed speaker '{temp_name}' to '{new_real_name}'.")
+    print(f"Updated embedding path for global speaker: {global_speaker_id}")
 
-def get_speaker_by_temp_name(temp_name: str):
-    """Retrieves a speaker record by their temporary name."""
+def rename_speaker(global_speaker_id: str, new_real_name: str):
+    """Updates the real_name for a given global speaker ID."""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM speakers WHERE temp_name = ?", (temp_name,))
+    c.execute("UPDATE speakers SET real_name = ? WHERE global_speaker_id = ?", (new_real_name, global_speaker_id))
+    conn.commit()
+    conn.close()
+    print(f"Renamed global speaker '{global_speaker_id}' to '{new_real_name}'.")
+
+def get_speaker_by_global_id(global_speaker_id: str):
+    """Retrieves a speaker record by their global speaker ID."""
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM speakers WHERE global_speaker_id = ?", (global_speaker_id,))
     speaker = c.fetchone()
     conn.close()
     return speaker
 
-def get_all_speakers():
-    """Retrieves all speakers from the database."""
+def get_all_global_speakers():
+    """Retrieves all global speakers from the database."""
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM speakers")
@@ -92,36 +111,58 @@ def get_all_speakers():
     conn.close()
     return speakers
 
-def add_transcript_record(audio_path: str, transcript_path: str):
-    """Adds a new transcript record."""
+def get_transcript_by_sha256(audio_sha256: str):
+    """Retrieves a transcript record by its SHA256 hash."""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("INSERT INTO transcripts (audio_path, transcript_path) VALUES (?, ?)", (audio_path, transcript_path))
-    conn.commit()
-    record_id = c.lastrowid
+    c.execute("SELECT * FROM transcripts WHERE audio_sha256 = ?", (audio_sha256,))
+    record = c.fetchone()
     conn.close()
-    print(f"Added transcript record for {Path(audio_path).name} with ID: {record_id}")
-    return record_id
+    return record
 
-def update_transcript_record(audio_path: str, diarized_transcript_path: str = None, summary_path: str = None):
-    """Updates an existing transcript record."""
+def save_transcript_record(audio_path: str, audio_sha256: str, 
+                           transcript_path: str = None, 
+                           diarized_transcript_path: str = None, 
+                           summary_path: str = None,
+                           status: str = None):
+    """Inserts a new transcript record or updates an existing one based on audio_sha256."""
     conn = get_db_connection()
     c = conn.cursor()
-    updates = []
-    params = []
-    if diarized_transcript_path:
-        updates.append("diarized_transcript_path = ?")
-        params.append(diarized_transcript_path)
-    if summary_path:
-        updates.append("summary_path = ?")
-        params.append(summary_path)
     
-    if updates:
-        params.append(audio_path)
-        query = f"UPDATE transcripts SET {', '.join(updates)} WHERE audio_path = ?"
-        c.execute(query, params)
+    # Check if record already exists by SHA256
+    c.execute("SELECT id FROM transcripts WHERE audio_sha256 = ?", (audio_sha256,))
+    existing_record = c.fetchone()
+
+    if existing_record:
+        # Update existing record
+        updates = []
+        params = []
+        if transcript_path:
+            updates.append("transcript_path = ?")
+            params.append(transcript_path)
+        if diarized_transcript_path:
+            updates.append("diarized_transcript_path = ?")
+            params.append(diarized_transcript_path)
+        if summary_path:
+            updates.append("summary_path = ?")
+            params.append(summary_path)
+        if status:
+            updates.append("status = ?")
+            params.append(status)
+        
+        if updates:
+            params.append(audio_sha256)
+            query = f"UPDATE transcripts SET {', '.join(updates)} WHERE audio_sha256 = ?"
+            c.execute(query, params)
+            conn.commit()
+            print(f"Updated transcript record for {Path(audio_path).name} (SHA256: {audio_sha256[:8]})")
+    else:
+        # Insert new record
+        c.execute("INSERT INTO transcripts (audio_path, audio_sha256, transcript_path, diarized_transcript_path, summary_path, status) VALUES (?, ?, ?, ?, ?, ?)", 
+                  (audio_path, audio_sha256, transcript_path, diarized_transcript_path, summary_path, status if status else 'pending'))
         conn.commit()
-        print(f"Updated transcript record for {Path(audio_path).name}")
+        print(f"Added new transcript record for {Path(audio_path).name} (SHA256: {audio_sha256[:8]})")
+    
     conn.close()
 
 

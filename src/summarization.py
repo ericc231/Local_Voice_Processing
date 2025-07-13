@@ -19,6 +19,8 @@ def get_model_path():
     repo_id = config.LLM_GGUF_REPO
     filename = config.LLM_GGUF_FILENAME
     
+    print(f"[DEBUG] Attempting to download model: repo_id={repo_id}, filename={filename}")
+
     if not repo_id or not filename:
         raise ValueError("LLM_GGUF_REPO and LLM_GGUF_FILENAME must be set in the .env file.")
 
@@ -26,9 +28,10 @@ def get_model_path():
         model_path = hf_hub_download(
             repo_id=repo_id,
             filename=filename,
-            local_dir=config.PROJECT_ROOT / "models", 
-            local_dir_use_symlinks=False 
+            local_dir=config.PROJECT_ROOT / "models", # Download to project's models dir
+            force_download=True # Force re-download
         )
+        print(f"[DEBUG] Model downloaded to: {model_path}")
         return model_path
     except Exception as e:
         print(f"Error downloading model: {e}")
@@ -39,7 +42,7 @@ def load_model():
     global llm_model
     if llm_model is None:
         model_path = get_model_path()
-        print(f"Loading LLM model from: {model_path}")
+        print(f"[DEBUG] Final model path for Llama: {model_path}")
         llm_model = Llama(
             model_path=model_path,
             n_gpu_layers=-1,
@@ -47,7 +50,7 @@ def load_model():
             verbose=True,
         )
 
-def summarize_transcript(diarized_transcript_path):
+def summarize_transcript(diarized_transcript_path, audio_sha256):
     """Summarizes a transcript using the loaded local LLM."""
     load_model()
 
@@ -57,17 +60,31 @@ def summarize_transcript(diarized_transcript_path):
 
     # Dynamically get real names for speakers from the database
     speaker_name_map = {}
-    all_speakers = data_manager.get_all_speakers()
+    all_speakers = data_manager.get_all_global_speakers()
     for speaker_record in all_speakers:
-        speaker_name_map[speaker_record['temp_name']] = speaker_record['real_name']
+        speaker_name_map[speaker_record['global_speaker_id']] = speaker_record['real_name']
 
     # Prepare full text with real names for summarization
     full_text_lines = []
     for segment in diarized_transcript['segments']:
-        temp_speaker_name = segment.get('speaker', 'UNKNOWN')
-        real_speaker_name = speaker_name_map.get(temp_speaker_name, temp_speaker_name) # Use real name if available
+        global_speaker_id = segment.get('speaker', 'UNKNOWN_SPEAKER')
+        real_speaker_name = speaker_name_map.get(global_speaker_id, global_speaker_id) # Use real name if available
         full_text_lines.append(f"{real_speaker_name}: {segment['text'].strip()}")
     full_text = "\n".join(full_text_lines)
+
+    # Truncate full_text to fit within the model's context window
+    # A safe margin is used to account for prompt template and output tokens
+    max_context_tokens = llm_model.n_ctx() - 512 # Reserve 512 tokens for prompt template and output
+    if llm_model.token_eos() is None: # Fallback for models without explicit EOS token
+        max_context_tokens = llm_model.n_ctx() - 512
+
+    # Encode the text to tokens to get its length
+    encoded_text = llm_model.tokenize(full_text.encode("utf-8"))
+    if len(encoded_text) > max_context_tokens:
+        print(f"Warning: Conversation text ({len(encoded_text)} tokens) exceeds model context window. Truncating to {max_context_tokens} tokens.")
+        # Decode truncated tokens back to text
+        truncated_encoded_text = encoded_text[:max_context_tokens]
+        full_text = llm_model.detokenize(truncated_encoded_text).decode("utf-8", errors="ignore")
 
     # Create the prompt using the Qwen1.5 Chat format
     prompt_template = """<|im_start|>system
@@ -102,7 +119,7 @@ Please provide a summary of the conversation.<|im_end|>
     # Save summary to file
     summary_output_dir = config.SUMMARIES_DIR
     summary_output_dir.mkdir(parents=True, exist_ok=True)
-    summary_filename = Path(diarized_transcript_path).stem.replace("_diarized", "") + "_summary.txt"
+    summary_filename = f"{audio_sha256}.txt"
     summary_path = summary_output_dir / summary_filename
     with open(summary_path, 'w', encoding='utf-8') as f:
         f.write(summary)
@@ -111,6 +128,6 @@ Please provide a summary of the conversation.<|im_end|>
     # Update transcript record in database with summary path
     original_audio_path = diarized_transcript.get('audio_path')
     if original_audio_path:
-        data_manager.update_transcript_record(original_audio_path, summary_path=str(summary_path))
+        data_manager.save_transcript_record(original_audio_path, audio_sha256, summary_path=str(summary_path), status='summarized')
 
     return summary

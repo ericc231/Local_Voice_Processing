@@ -101,3 +101,6 @@ venv.bak/
 /embeddings/
 /summaries/
 /database/
+/audio/
+/models/
+/pretrained_models/

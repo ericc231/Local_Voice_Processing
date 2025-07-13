@@ -32,7 +32,7 @@ def load_diarization_pipeline():
             print("Visit https://huggingface.co/pyannote/speaker-diarization-3.1 and accept the license.")
             raise
 
-def diarize_transcript(transcript_path):
+def diarize_transcript(transcript_path, audio_sha256):
     """Performs speaker diarization on the original audio and integrates with the transcript."""
     load_diarization_pipeline()
 
@@ -91,12 +91,13 @@ def diarize_transcript(transcript_path):
     # Create a new JSON structure for the diarized transcript
     diarized_transcript_data = {
         "audio_path": original_audio_path,
+        "audio_sha256": audio_sha256,
         "segments": diarized_segments,
         "diarization_info": str(diarization_result) # Store raw diarization output for debugging
     }
 
     # Save diarized transcript
-    output_filename = Path(transcript_path).stem.replace("_diarized", "") + "_diarized.json"
+    output_filename = f"{audio_sha256}.json"
     output_path = config.DIARIZED_TRANSCRIPTS_DIR / output_filename
     
     with open(output_path, 'w', encoding='utf-8') as f:

@@ -41,11 +41,14 @@ local_voice_processing/
 1. **Create and activate the Conda environment:**
 
    ```bash
-   # Create the environment from the file
+   # Create the environment from the file (this will install most dependencies including PyTorch, Torchaudio, etc.)
    conda env create -f environment.yml
 
    # Activate the new environment
    conda activate local_voice_processing
+
+   # Install remaining Python dependencies
+   pip install -r requirements.txt
    ```
 
    ```dotenv
@@ -70,3 +73,5 @@ python -m src.main audio/your_audio_file.wav --summarize
 ```
 
 **Note**: The input audio file must be in `.wav` format. If you have another format (e.g., `.mp3`, `.m4a`), please convert it first. A sample `ffmpeg` command is provided by the script if you use a wrong file type.
+
+**File Deduplication and Resume**: The system calculates the SHA256 hash of the input audio file. If a file with the same hash has been previously processed (or partially processed), the system will either skip processing (if completed) or resume from the last known stage.
