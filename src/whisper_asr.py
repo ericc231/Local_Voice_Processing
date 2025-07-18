@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 import torch # Import torch
 
-def transcribe_audio(audio_path, audio_sha256):
+def transcribe_audio(audio_path, audio_sha256, initial_prompt=""):
     """Transcribes an audio file using Whisper and saves the output as JSON."""
     from . import config
     from pathlib import Path
@@ -29,7 +29,8 @@ def transcribe_audio(audio_path, audio_sha256):
     print(f"Loading Whisper model (device: {whisper_device})...")
     model = whisper.load_model("base", device=whisper_device) 
     print(f"Transcribing {audio_path}...")
-    result = model.transcribe(audio_path)
+    # Use the passed initial_prompt, which could be from the file or the .env config
+    result = model.transcribe(audio_path, initial_prompt=initial_prompt)
 
     # Save transcript
     config.ensure_dirs_exist()

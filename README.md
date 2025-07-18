@@ -27,7 +27,8 @@ local_voice_processing/
 │   ├── data_manager.py
 │   ├── diarization.py
 │   ├── embedding.py
-│   └── summarization.py
+│   ├── summarization.py
+│   └── utils.py
 ├── summaries/              # Generated summaries
 ├── transcripts/            # Raw ASR transcripts
 ├── .env                    # Environment variables
@@ -55,6 +56,9 @@ local_voice_processing/
    # .env
    COMPUTE_DEVICE=auto
    HUGGING_FACE_HUB_TOKEN=your_huggingface_read_token_here # Required for pyannote.audio and SpeechBrain models
+
+   # ASR Model Selection: 'whisper' (default) or 'paraformer'
+   ASR_MODEL=whisper
    ```
 
 2. **Configure the LLM Model:**
@@ -75,3 +79,25 @@ python -m src.main audio/your_audio_file.wav --summarize
 **Note**: The input audio file must be in `.wav` format. If you have another format (e.g., `.mp3`, `.m4a`), please convert it first. A sample `ffmpeg` command is provided by the script if you use a wrong file type.
 
 **File Deduplication and Resume**: The system calculates the SHA256 hash of the input audio file. If a file with the same hash has been previously processed (or partially processed), the system will either skip processing (if completed) or resume from the last known stage.
+
+## Licenses and Acknowledgements
+
+This project utilizes the following open-source libraries and models:
+
+*   **`openai-whisper`**: MIT License
+*   **`pyannote.audio`**: MIT License
+*   **`speechbrain`**: MIT License
+*   **`llama-cpp-python`**: MIT License
+*   **`torch`**: BSD-3-Clause License
+*   **`torchaudio`**: BSD-3-Clause License
+*   **`huggingface-hub`**: Apache License 2.0
+*   **`tqdm`**: MIT License
+*   **`python-dotenv`**: BSD-3-Clause License
+*   **`transformers`**: Apache License 2.0
+*   **`sentencepiece`**: Apache License 2.0
+*   **`accelerate`**: Apache License 2.0
+*   **`numpy`**: BSD-3-Clause License
+*   **`sqlite3`**: Public Domain
+*   **`Qwen2` (Model)**: Apache License 2.0
+
+We extend our gratitude to the developers and communities behind these projects for their invaluable contributions to the open-source ecosystem.

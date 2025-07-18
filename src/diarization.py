@@ -50,6 +50,11 @@ def diarize_transcript(transcript_path, audio_sha256):
     print(f"Running diarization on {original_audio_path}...")
     diarization_result = diarization_pipeline(original_audio_path)
 
+    # DEBUG: Print pyannote.audio's raw output
+    unique_pyannote_speakers = set(speaker for turn, _, speaker in diarization_result.itertracks(yield_label=True))
+    print(f"[DEBUG] Pyannote detected {len(unique_pyannote_speakers)} unique speakers: {sorted(list(unique_pyannote_speakers))}")
+    print(f"[DEBUG] Pyannote raw diarization result:\n{diarization_result}")
+
     # 3. Integrate diarization results with ASR transcript
     diarized_segments = []
     

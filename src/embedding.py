@@ -11,7 +11,6 @@ import torch
 from speechbrain.inference.speaker import EncoderClassifier
 import numpy as np
 import torchaudio
-from torchaudio.functional.functional import extract_segments # Direct import from functional.py
 
 from . import config
 from . import data_manager
@@ -117,13 +116,20 @@ def assign_global_speaker_id_and_save_embedding(new_embedding: np.ndarray):
         return best_match_global_id
     else:
         # No strong match, create a new global speaker ID
-        new_global_id = data_manager.get_next_global_speaker_id()
-        embedding_filename = f"{new_global_id}.npy"
-        embedding_path = config.EMBEDDINGS_DIR / embedding_filename
-        np.save(embedding_path, new_embedding)
-        data_manager.add_global_speaker(new_global_id, str(embedding_path))
-        print(f"Created new global speaker: {new_global_id} (Similarity to best match: {highest_similarity:.4f})")
-        return new_global_id
+        while True:
+            new_global_id = data_manager.get_next_global_speaker_id()
+            embedding_filename = f"{new_global_id}.npy"
+            embedding_path = config.EMBEDDINGS_DIR / embedding_filename
+            
+            # Try to add the new speaker. If it already exists, get next ID.
+            try:
+                data_manager.add_global_speaker(new_global_id, str(embedding_path))
+                np.save(embedding_path, new_embedding) # Save embedding only if speaker is successfully added
+                print(f"Created new global speaker: {new_global_id} (Similarity to best match: {highest_similarity:.4f})")
+                return new_global_id
+            except sqlite3.IntegrityError:
+                print(f"Warning: Generated ID {new_global_id} already exists. Trying next ID.")
+                # Continue loop to get next ID
 
 def generate_embeddings(diarized_transcript_path, audio_sha256):
     """Generates and saves speaker embeddings from a diarized transcript.

@@ -17,6 +17,7 @@ TRANSCRIPTS_DIR = PROJECT_ROOT / "transcripts"
 DIARIZED_TRANSCRIPTS_DIR = PROJECT_ROOT / "diarized_transcripts"
 EMBEDDINGS_DIR = PROJECT_ROOT / "embeddings"
 SUMMARIES_DIR = PROJECT_ROOT / "summaries"
+PDF_OUTPUT_DIR = PROJECT_ROOT / "pdf_outputs"
 DATABASE_DIR = PROJECT_ROOT / "database"
 DB_PATH = DATABASE_DIR / "metadata.db"
 
@@ -26,6 +27,7 @@ WHISPER_MODEL_PATH = os.getenv("WHISPER_MODEL_PATH")
 LLM_GGUF_REPO = os.getenv("LLM_GGUF_REPO")
 LLM_GGUF_FILENAME = os.getenv("LLM_GGUF_FILENAME")
 COMPUTE_DEVICE_SETTING = os.getenv("COMPUTE_DEVICE", "auto").lower()
+WHISPER_INITIAL_PROMPT = os.getenv("WHISPER_INITIAL_PROMPT", "") # Prompt for Whisper
 
 print(f"[DEBUG] Config LLM_GGUF_REPO: {LLM_GGUF_REPO}")
 print(f"[DEBUG] Config LLM_GGUF_FILENAME: {LLM_GGUF_FILENAME}")
@@ -78,5 +80,5 @@ def get_compute_device():
 
 def ensure_dirs_exist():
     """Ensures that all output directories exist."""
-    for path in [TRANSCRIPTS_DIR, DIARIZED_TRANSCRIPTS_DIR, EMBEDDINGS_DIR, SUMMARIES_DIR, DATABASE_DIR]:
+    for path in [TRANSCRIPTS_DIR, DIARIZED_TRANSCRIPTS_DIR, EMBEDDINGS_DIR, SUMMARIES_DIR, PDF_OUTPUT_DIR, DATABASE_DIR]:
         path.mkdir(parents=True, exist_ok=True)

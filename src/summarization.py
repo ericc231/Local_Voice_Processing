@@ -88,7 +88,9 @@ def summarize_transcript(diarized_transcript_path, audio_sha256):
 
     # Create the prompt using the Qwen1.5 Chat format
     prompt_template = """<|im_start|>system
-You are a helpful assistant. Your task is to provide a concise summary of the following conversation. The summary should be in the same language as the conversation.<|im_end|>
+You are a helpful assistant. Your task is to provide a concise summary of the following conversation.
+The summary MUST be in the exact same language as the conversation. DO NOT translate the text under any circumstances. If the conversation is in Traditional Chinese, the summary MUST be in Traditional Chinese. If English, the summary MUST be in English.
+<|im_end|>
 <|im_start|>user
 Conversation:
 ---

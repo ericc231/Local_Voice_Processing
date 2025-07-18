@@ -1,3 +1,4 @@
+
 """
 Data management using SQLite.
 """
@@ -14,15 +15,10 @@ def get_db_connection():
 
 def init_db():
     """Initializes the SQLite database schema.
-    Drops and recreates tables for schema updates in development.
     """
     conn = get_db_connection()
     c = conn.cursor()
     
-    # Drop tables for development schema updates
-    c.execute("DROP TABLE IF EXISTS speakers")
-    c.execute("DROP TABLE IF EXISTS transcripts")
-
     c.execute('''
         CREATE TABLE IF NOT EXISTS speakers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +35,7 @@ def init_db():
             transcript_path TEXT,
             diarized_transcript_path TEXT,
             summary_path TEXT,
+            pdf_path TEXT, -- Path to the generated PDF output
             status TEXT DEFAULT 'pending', -- e.g., 'pending', 'transcribed', 'diarized', 'embedded', 'summarized', 'completed'
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -50,7 +47,7 @@ def get_next_global_speaker_id():
     """Generates the next available global speaker ID (e.g., GLOBAL_SPEAKER_001)."""
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT MAX(CAST(SUBSTR(global_speaker_id, 15) AS INTEGER)) FROM speakers WHERE global_speaker_id LIKE 'GLOBAL_SPEAKER_%'")
+    c.execute("SELECT MAX(CAST(SUBSTR(global_speaker_id, 16) AS INTEGER)) FROM speakers WHERE global_speaker_id LIKE 'GLOBAL_SPEAKER_%'")
     max_id = c.fetchone()[0]
     conn.close()
     if max_id is None:
@@ -70,7 +67,8 @@ def add_global_speaker(global_speaker_id: str, embedding_path: str):
         conn.commit()
         print(f"Added new global speaker: {global_speaker_id}")
     except sqlite3.IntegrityError:
-        print(f"Warning: Global speaker {global_speaker_id} already exists. Skipping add.")
+        # If global_speaker_id already exists, do nothing (it means it was already added by another process/run)
+        print(f"Warning: Global speaker {global_speaker_id} already exists. Skipping add (expected behavior).")
     finally:
         conn.close()
 
@@ -124,6 +122,7 @@ def save_transcript_record(audio_path: str, audio_sha256: str,
                            transcript_path: str = None, 
                            diarized_transcript_path: str = None, 
                            summary_path: str = None,
+                           pdf_path: str = None, # Add new parameter
                            status: str = None):
     """Inserts a new transcript record or updates an existing one based on audio_sha256."""
     conn = get_db_connection()
@@ -146,6 +145,9 @@ def save_transcript_record(audio_path: str, audio_sha256: str,
         if summary_path:
             updates.append("summary_path = ?")
             params.append(summary_path)
+        if pdf_path:
+            updates.append("pdf_path = ?")
+            params.append(pdf_path)
         if status:
             updates.append("status = ?")
             params.append(status)
@@ -158,8 +160,8 @@ def save_transcript_record(audio_path: str, audio_sha256: str,
             print(f"Updated transcript record for {Path(audio_path).name} (SHA256: {audio_sha256[:8]})")
     else:
         # Insert new record
-        c.execute("INSERT INTO transcripts (audio_path, audio_sha256, transcript_path, diarized_transcript_path, summary_path, status) VALUES (?, ?, ?, ?, ?, ?)", 
-                  (audio_path, audio_sha256, transcript_path, diarized_transcript_path, summary_path, status if status else 'pending'))
+        c.execute("INSERT INTO transcripts (audio_path, audio_sha256, transcript_path, diarized_transcript_path, summary_path, pdf_path, status) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                  (audio_path, audio_sha256, transcript_path, diarized_transcript_path, summary_path, pdf_path, status if status else 'pending'))
         conn.commit()
         print(f"Added new transcript record for {Path(audio_path).name} (SHA256: {audio_sha256[:8]})")
     

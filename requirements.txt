@@ -2,6 +2,13 @@ openai-whisper
 pyannote.audio
 speechbrain
 
+# Paraformer ASR dependencies
+# transformers is already there
+# sentencepiece is already there
+# accelerate is already there
+# torchaudio is already there
+# torch is already there
+
 transformers
 sentencepiece
 accelerate
